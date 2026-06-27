@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">WeatherWindow</string>
+    <string name="wallpaper_name">WeatherWindow Live</string>
+    <string name="wallpaper_description">A live wallpaper that follows real weather, sunrise and sunset.</string>
+    <string name="widget_description">Weather scene snapshot widget</string>
+</resources>
