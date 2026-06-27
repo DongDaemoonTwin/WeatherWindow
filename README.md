@@ -21,6 +21,18 @@ The app screen is only for setup, preview, permission, and refresh controls.
 - Scene state layer for weather type, rain/snow/cloud intensity, sunrise and sunset
 - Canvas renderer for sky gradient, sun/moon arc, clouds, rain, snow, fog, thunder and a minimal window-frame composition
 
+## Browser preview in Codespaces
+
+Codespaces cannot realistically run the Android live wallpaper or home screen widget like a real phone. Use the browser preview to inspect the visual direction instead:
+
+```bash
+python3 -m http.server 5173 -d preview
+```
+
+Then open the forwarded port `5173` from the Codespaces **Ports** tab.
+
+This preview is not the APK. It is a lightweight browser version of the wallpaper scene for visual checking.
+
 ## Codespaces setup
 
 If you see this error:
