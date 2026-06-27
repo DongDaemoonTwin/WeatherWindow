@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WeatherWindow Preview</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0b1020;
+      color: #f7f8ff;
+    }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .shell {
+      width: min(1120px, 100%);
+      display: grid;
+      grid-template-columns: minmax(320px, 520px) 1fr;
+      gap: 28px;
+      align-items: center;
+    }
+    .phone {
+      width: min(420px, 100%);
+      aspect-ratio: 9 / 19.5;
+      border-radius: 46px;
+      padding: 14px;
+      background: linear-gradient(145deg, #202638, #080b14);
+      box-shadow: 0 28px 90px rgba(0,0,0,.45);
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 34px;
+      background: #111827;
+    }
+    .panel {
+      padding: 28px;
+      border-radius: 28px;
+      background: rgba(255,255,255,.075);
+      border: 1px solid rgba(255,255,255,.12);
+      backdrop-filter: blur(14px);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(30px, 4vw, 54px);
+      letter-spacing: -0.06em;
+    }
+    p {
+      margin: 0 0 22px;
+      color: rgba(247,248,255,.72);
+      line-height: 1.55;
+    }
+    label {
+      display: grid;
+      gap: 8px;
+      margin: 16px 0;
+      font-size: 14px;
+      color: rgba(247,248,255,.78);
+    }
+    select, input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 16px;
+      padding: 13px 14px;
+      background: rgba(0,0,0,.22);
+      color: #fff;
+      font: inherit;
+    }
+    .meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 22px;
+    }
+    .pill {
+      padding: 13px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.08);
+      color: rgba(247,248,255,.78);
+      font-size: 13px;
+    }
+    .pill strong {
+      display: block;
+      color: white;
+      font-size: 18px;
+      margin-top: 4px;
+    }
+    @media (max-width: 820px) {
+      .shell { grid-template-columns: 1fr; }
+      .phone { margin: 0 auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="phone">
+      <canvas id="scene" width="900" height="1950"></canvas>
+    </section>
+
+    <section class="panel">
+      <h1>WeatherWindow</h1>
+      <p>
+        Browser-only preview for the Android live wallpaper. This does not run the APK,
+        but it lets you inspect the visual direction inside Codespaces.
+      </p>
+
+      <label>
+        Weather
+        <select id="weather">
+          <option value="clear">Clear</option>
+          <option value="cloudy">Cloudy</option>
+          <option value="rain">Rain</option>
+          <option value="snow">Snow</option>
+          <option value="fog">Fog</option>
+          <option value="thunder">Thunder</option>
+        </select>
+      </label>
+
+      <label>
+        Time of day
+        <input id="time" type="range" min="0" max="1" step="0.001" value="0.62" />
+      </label>
+
+      <label>
+        Cloud cover
+        <input id="cloud" type="range" min="0" max="1" step="0.01" value="0.35" />
+      </label>
+
+      <label>
+        Weather intensity
+        <input id="intensity" type="range" min="0" max="1" step="0.01" value="0.45" />
+      </label>
+
+      <div class="meta">
+        <div class="pill">Scene<strong id="sceneLabel">Clear</strong></div>
+        <div class="pill">Temp<strong>22°C</strong></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('scene');
+    const ctx = canvas.getContext('2d');
+    const weatherEl = document.getElementById('weather');
+    const timeEl = document.getElementById('time');
+    const cloudEl = document.getElementById('cloud');
+    const intensityEl = document.getElementById('intensity');
+    const sceneLabel = document.getElementById('sceneLabel');
+
+    function mix(a, b, t) {
+      return a.map((v, i) => Math.round(v + (b[i] - v) * t));
+    }
+    function rgb(c) { return `rgb(${c[0]},${c[1]},${c[2]})`; }
+    function darken(c, amount) { return c.map(v => Math.round(v * (1 - amount))); }
+
+    function skyColors(t, weather) {
+      let top, bottom;
+      if (t < 0.18) {
+        const k = t / 0.18;
+        top = mix([38,44,92], [120,174,220], k);
+        bottom = mix([245,161,122], [190,226,244], k);
+      } else if (t > 0.78) {
+        const k = (t - 0.78) / 0.22;
+        top = mix([82,154,219], [54,42,93], k);
+        bottom = mix([194,231,247], [247,139,91], k);
+      } else {
+        top = [80,158,225];
+        bottom = [193,231,248];
+      }
+      if (t < 0.04 || t > 0.96) {
+        top = [9,15,35];
+        bottom = [22,34,58];
+      }
+      const darkness = { clear: 0, cloudy: .16, rain: .36, snow: .06, fog: .24, thunder: .46 }[weather] || 0;
+      return [darken(top, darkness), darken(bottom, darkness)];
+    }
+
+    function cloud(x, y, s, color) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(x + 84*s, y + 56*s, 104*s, 34*s, 0, 0, Math.PI*2);
+      ctx.arc(x + 42*s, y + 42*s, 34*s, 0, Math.PI*2);
+      ctx.arc(x + 92*s, y + 28*s, 48*s, 0, Math.PI*2);
+      ctx.arc(x + 145*s, y + 48*s, 34*s, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    function draw(now) {
+      const w = canvas.width, h = canvas.height;
+      const weather = weatherEl.value;
+      const t = Number(timeEl.value);
+      const cloudCover = Number(cloudEl.value);
+      const intensity = Number(intensityEl.value);
+      sceneLabel.textContent = weather[0].toUpperCase() + weather.slice(1);
+
+      const [top, bottom] = skyColors(t, weather);
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, rgb(top));
+      grad.addColorStop(1, rgb(bottom));
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      if (t > 0.04 && t < 0.96) {
+        const x = w * t;
+        const horizon = h * 0.74;
+        const noon = h * 0.18;
+        const arc = Math.sin(t * Math.PI);
+        const y = horizon - ((horizon - noon) * arc);
+        const glow = ctx.createRadialGradient(x, y, 10, x, y, 170);
+        glow.addColorStop(0, 'rgba(255,224,110,.55)');
+        glow.addColorStop(1, 'rgba(255,224,110,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(x, y, 170, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#ffdd5c';
+        ctx.beginPath(); ctx.arc(x, y, 42, 0, Math.PI*2); ctx.fill();
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,.75)';
+        for (let i = 0; i < 55; i++) {
+          ctx.beginPath();
+          ctx.arc((i*137)%w, 60 + (i*91)%(h*.42), i%4===0 ? 3 : 1.5, 0, Math.PI*2);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#ecefd2';
+        ctx.beginPath(); ctx.arc(w*.72, h*.18, 38, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#16223a';
+        ctx.beginPath(); ctx.arc(w*.742, h*.17, 36, 0, Math.PI*2); ctx.fill();
+      }
+
+      const cloudColor = ['rain','thunder'].includes(weather) ? 'rgba(78,88,108,.75)' : 'rgba(245,248,250,.72)';
+      const count = Math.floor(2 + cloudCover * 8);
+      for (let i = 0; i < count; i++) {
+        const x = ((i * w / count) + (now * (0.018 + i*.001)) % (w + 240)) - 180;
+        const y = h * (0.12 + (i % 5) * 0.06);
+        cloud(x, y, 0.95 + i*.05, cloudColor);
+      }
+
+      if (weather === 'rain' || weather === 'thunder') {
+        ctx.strokeStyle = 'rgba(200,224,245,.68)';
+        ctx.lineWidth = 3;
+        const drops = Math.floor(120 + intensity * 360);
+        for (let i = 0; i < drops; i++) {
+          const x = (i * 71) % w;
+          const y = ((now * .62) + i * 53) % h;
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 20, y + 58); ctx.stroke();
+        }
+      }
+
+      if (weather === 'snow') {
+        ctx.fillStyle = 'rgba(255,255,255,.86)';
+        const flakes = Math.floor(90 + intensity * 220);
+        for (let i = 0; i < flakes; i++) {
+          const drift = Math.sin(now/500 + i) * 24;
+          const x = ((i * 83) % w) + drift;
+          const y = ((now * .2) + i * 61) % h;
+          ctx.beginPath(); ctx.arc(x, y, 2 + (i % 4), 0, Math.PI*2); ctx.fill();
+        }
+      }
+
+      if (weather === 'fog') {
+        const fog = ctx.createLinearGradient(0, 0, 0, h);
+        fog.addColorStop(0, 'rgba(235,238,240,.62)');
+        fog.addColorStop(1, 'rgba(235,238,240,.22)');
+        ctx.fillStyle = fog;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      if (weather === 'thunder' && Math.floor(now / 2600) % 6 === 0) {
+        ctx.fillStyle = 'rgba(255,255,255,.18)';
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      const margin = w * 0.08;
+      const topY = h * 0.10;
+      const bottomY = h * 0.90;
+      ctx.lineWidth = w * 0.032;
+      ctx.strokeStyle = 'rgba(34,31,38,.92)';
+      roundRect(margin, topY, w - margin*2, bottomY - topY, 36);
+      ctx.stroke();
+      ctx.lineWidth = w * 0.014;
+      ctx.beginPath(); ctx.moveTo(w/2, topY); ctx.lineTo(w/2, bottomY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(margin, (topY+bottomY)/2); ctx.lineTo(w-margin, (topY+bottomY)/2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.07)';
+      roundRect(margin, topY, w - margin*2, bottomY - topY, 36);
+      ctx.fill();
+
+      requestAnimationFrame(draw);
+    }
+
+    function roundRect(x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+    }
+
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>
