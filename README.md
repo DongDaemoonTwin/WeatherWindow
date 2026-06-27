@@ -21,11 +21,29 @@ The app screen is only for setup, preview, permission, and refresh controls.
 - Scene state layer for weather type, rain/snow/cloud intensity, sunrise and sunset
 - Canvas renderer for sky gradient, sun/moon arc, clouds, rain, snow, fog, thunder and a minimal window-frame composition
 
+## Codespaces setup
+
+If you see this error:
+
+```text
+SDK location not found. Define a valid SDK location with an ANDROID_HOME environment variable or by setting the sdk.dir path in your project's local properties file.
+```
+
+run:
+
+```bash
+bash scripts/setup-android-sdk.sh
+gradle wrapper --gradle-version 9.3.1
+./gradlew clean assembleDebug
+```
+
+The setup script installs Android command line tools, platform tools, Android 35, build-tools 35.0.0, accepts SDK licenses, and writes `local.properties` locally.
+
+New Codespaces should also run this automatically through `.devcontainer/devcontainer.json`. If you already had a Codespace open before this file was added, rebuild the container or run the script manually.
+
 ## Build
 
 ```bash
-# In Codespaces/local machine with Android SDK + Gradle available
-gradle wrapper
 ./gradlew assembleDebug
 ```
 
